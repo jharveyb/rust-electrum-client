@@ -402,12 +402,37 @@ impl ElectrumApi for Client {
     }
 
     #[inline]
+    fn batch_txid_from_pos<I>(&self, heights_and_positions: I) -> Result<Vec<Txid>, Error>
+    where
+        I: IntoIterator + Clone,
+        I::Item: Borrow<(usize, usize)>,
+    {
+        impl_inner_call!(self, batch_txid_from_pos, heights_and_positions.clone())
+    }
+
+    #[inline]
     fn txid_from_pos_with_merkle(
         &self,
         height: usize,
         tx_pos: usize,
     ) -> Result<TxidFromPosRes, Error> {
         impl_inner_call!(self, txid_from_pos_with_merkle, height, tx_pos)
+    }
+
+    #[inline]
+    fn batch_txid_from_pos_with_merkle<I>(
+        &self,
+        heights_and_positions: I,
+    ) -> Result<Vec<TxidFromPosRes>, Error>
+    where
+        I: IntoIterator + Clone,
+        I::Item: Borrow<(usize, usize)>,
+    {
+        impl_inner_call!(
+            self,
+            batch_txid_from_pos_with_merkle,
+            heights_and_positions.clone()
+        )
     }
 
     #[inline]
