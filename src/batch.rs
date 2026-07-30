@@ -75,6 +75,31 @@ impl Batch {
             .push((String::from("blockchain.transaction.get_merkle"), params));
     }
 
+    /// Add one `blockchain.transaction.id_from_pos` request to the batch queue
+    pub fn txid_from_pos(&mut self, height_and_tx_pos: &(usize, usize)) {
+        let (height, tx_pos) = height_and_tx_pos;
+        let params = vec![
+            Param::Usize(*height),
+            Param::Usize(*tx_pos),
+            Param::Bool(false),
+        ];
+        self.calls
+            .push((String::from("blockchain.transaction.id_from_pos"), params));
+    }
+
+    /// Add one `blockchain.transaction.id_from_pos` request, asking for the merkle path as well,
+    /// to the batch queue
+    pub fn txid_from_pos_with_merkle(&mut self, height_and_tx_pos: &(usize, usize)) {
+        let (height, tx_pos) = height_and_tx_pos;
+        let params = vec![
+            Param::Usize(*height),
+            Param::Usize(*tx_pos),
+            Param::Bool(true),
+        ];
+        self.calls
+            .push((String::from("blockchain.transaction.id_from_pos"), params));
+    }
+
     /// Add one `blockchain.estimatefee` request to the batch queue
     pub fn estimate_fee(&mut self, number: usize, mode: Option<EstimationMode>) {
         let mut params = vec![Param::Usize(number)];

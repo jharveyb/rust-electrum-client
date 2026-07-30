@@ -1384,6 +1384,14 @@ impl<T: Read + Write> ElectrumApi for RawClient<T> {
         Ok(serde_json::from_value::<TxidFromPosRes>(result)?.into())
     }
 
+    fn batch_txid_from_pos<I>(&self, heights_and_positions: I) -> Result<Vec<Txid>, Error>
+    where
+        I: IntoIterator + Clone,
+        I::Item: Borrow<(usize, usize)>,
+    {
+        impl_batch_call!(self, heights_and_positions, txid_from_pos)
+    }
+
     fn txid_from_pos_with_merkle(
         &self,
         height: usize,
@@ -1402,6 +1410,17 @@ impl<T: Read + Write> ElectrumApi for RawClient<T> {
         let result = self.call(req)?;
 
         Ok(serde_json::from_value(result)?)
+    }
+
+    fn batch_txid_from_pos_with_merkle<I>(
+        &self,
+        heights_and_positions: I,
+    ) -> Result<Vec<TxidFromPosMerkleRes>, Error>
+    where
+        I: IntoIterator + Clone,
+        I::Item: Borrow<(usize, usize)>,
+    {
+        impl_batch_call!(self, heights_and_positions, txid_from_pos_with_merkle)
     }
 
     fn server_features(&self) -> Result<ServerFeaturesRes, Error> {
@@ -1983,6 +2002,156 @@ mod test {
                 179, 240, 153, 24, 114, 215, 144, 196, 212, 41, 39, 155, 246, 25
             ]
         );
+    }
+
+    #[test]
+    fn test_batch_txid_from_pos() {
+        use bitcoin::Txid;
+
+        struct TestCase {
+            height: usize,
+            tx_pos: usize,
+            exp_txid: Txid,
+        }
+
+        let client = get_test_client();
+
+        let test_cases: Vec<TestCase> = vec![
+            TestCase {
+                height: 630000,
+                tx_pos: 68,
+                exp_txid: Txid::from_str(
+                    "1f7ff3c407f33eabc8bec7d2cc230948f2249ec8e591bcf6f971ca9366c8788d",
+                )
+                .unwrap(),
+            },
+            TestCase {
+                height: 630001,
+                tx_pos: 25,
+                exp_txid: Txid::from_str(
+                    "70a8639bc9b743c0610d1231103a2f8e99f4a25670946b91f16c55a5373b37d1",
+                )
+                .unwrap(),
+            },
+            TestCase {
+                height: 840000,
+                tx_pos: 0,
+                exp_txid: Txid::from_str(
+                    "a0db149ace545beabbd87a8d6b20ffd6aa3b5a50e58add49a3d435f898c272cf",
+                )
+                .unwrap(),
+            },
+        ];
+
+        let heights_and_positions: Vec<(usize, usize)> = test_cases
+            .iter()
+            .map(|case| (case.height, case.tx_pos))
+            .collect();
+
+        let resp = client.batch_txid_from_pos(&heights_and_positions).unwrap();
+        assert_eq!(resp.len(), test_cases.len());
+
+        for (res, test_case) in resp.iter().zip(test_cases) {
+            assert_eq!(*res, test_case.exp_txid);
+        }
+    }
+
+    #[test]
+    fn test_batch_txid_from_pos_with_merkle() {
+        use crate::types::GetMerkleRes;
+        use bitcoin::Txid;
+
+        struct TestCase {
+            height: usize,
+            tx_pos: usize,
+            exp_txid: Txid,
+            exp_bytes: [u8; 32],
+        }
+
+        let client = get_test_client();
+
+        let test_cases: Vec<TestCase> = vec![
+            TestCase {
+                height: 630000,
+                tx_pos: 68,
+                exp_txid: Txid::from_str(
+                    "1f7ff3c407f33eabc8bec7d2cc230948f2249ec8e591bcf6f971ca9366c8788d",
+                )
+                .unwrap(),
+                exp_bytes: [
+                    34, 65, 51, 64, 49, 139, 115, 189, 185, 246, 70, 225, 168, 193, 217, 195, 47,
+                    66, 179, 240, 153, 24, 114, 215, 144, 196, 212, 41, 39, 155, 246, 25,
+                ],
+            },
+            TestCase {
+                height: 630001,
+                tx_pos: 25,
+                exp_txid: Txid::from_str(
+                    "70a8639bc9b743c0610d1231103a2f8e99f4a25670946b91f16c55a5373b37d1",
+                )
+                .unwrap(),
+                exp_bytes: [
+                    169, 100, 34, 99, 168, 101, 25, 168, 184, 90, 77, 50, 151, 245, 130, 101, 193,
+                    229, 136, 128, 63, 110, 241, 19, 242, 59, 184, 137, 245, 249, 188, 110,
+                ],
+            },
+            TestCase {
+                height: 840000,
+                tx_pos: 0,
+                exp_txid: Txid::from_str(
+                    "a0db149ace545beabbd87a8d6b20ffd6aa3b5a50e58add49a3d435f898c272cf",
+                )
+                .unwrap(),
+                exp_bytes: [
+                    43, 184, 95, 75, 0, 75, 230, 218, 84, 247, 102, 193, 124, 30, 133, 81, 135, 50,
+                    113, 18, 194, 49, 239, 47, 243, 94, 186, 208, 234, 103, 198, 158,
+                ],
+            },
+        ];
+
+        let heights_and_positions: Vec<(usize, usize)> = test_cases
+            .iter()
+            .map(|case| (case.height, case.tx_pos))
+            .collect();
+
+        let resp = client
+            .batch_txid_from_pos_with_merkle(&heights_and_positions)
+            .unwrap();
+        assert_eq!(resp.len(), test_cases.len());
+
+        for (res, test_case) in resp.iter().zip(test_cases) {
+            assert_eq!(res.tx_hash, test_case.exp_txid);
+            assert_eq!(res.merkle.len(), 12);
+            assert_eq!(res.merkle[0], test_case.exp_bytes);
+
+            // Check we can verify the merkle proof validity, but fail if we supply wrong data.
+            let merkle_res = GetMerkleRes {
+                block_height: test_case.height,
+                pos: test_case.tx_pos,
+                merkle: res.merkle.clone(),
+            };
+            let block_header = client.block_header(test_case.height).unwrap();
+            assert!(utils::validate_merkle_proof(
+                &res.tx_hash,
+                &block_header.merkle_root,
+                &merkle_res
+            ));
+
+            let mut fail_res = merkle_res.clone();
+            fail_res.pos = 13;
+            assert!(!utils::validate_merkle_proof(
+                &res.tx_hash,
+                &block_header.merkle_root,
+                &fail_res
+            ));
+
+            let fail_block_header = client.block_header(test_case.height + 1).unwrap();
+            assert!(!utils::validate_merkle_proof(
+                &res.tx_hash,
+                &fail_block_header.merkle_root,
+                &merkle_res
+            ));
+        }
     }
 
     #[test]

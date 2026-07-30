@@ -170,12 +170,31 @@ where
         (**self).txid_from_pos(height, tx_pos)
     }
 
+    fn batch_txid_from_pos<I>(&self, heights_and_positions: I) -> Result<Vec<Txid>, Error>
+    where
+        I: IntoIterator + Clone,
+        I::Item: Borrow<(usize, usize)>,
+    {
+        (**self).batch_txid_from_pos(heights_and_positions)
+    }
+
     fn txid_from_pos_with_merkle(
         &self,
         height: usize,
         tx_pos: usize,
     ) -> Result<TxidFromPosMerkleRes, Error> {
         (**self).txid_from_pos_with_merkle(height, tx_pos)
+    }
+
+    fn batch_txid_from_pos_with_merkle<I>(
+        &self,
+        heights_and_positions: I,
+    ) -> Result<Vec<TxidFromPosMerkleRes>, Error>
+    where
+        I: IntoIterator + Clone,
+        I::Item: Borrow<(usize, usize)>,
+    {
+        (**self).batch_txid_from_pos_with_merkle(heights_and_positions)
     }
 
     fn server_features(&self) -> Result<ServerFeaturesRes, Error> {
@@ -438,6 +457,15 @@ pub trait ElectrumApi {
     /// Returns a transaction hash, given a block `height` and a `tx_pos` in the block.
     fn txid_from_pos(&self, height: usize, tx_pos: usize) -> Result<Txid, Error>;
 
+    /// Batch version of [`txid_from_pos`](#method.txid_from_pos).
+    ///
+    /// Takes a list of `(height, tx_pos)`, for the transaction at position `tx_pos` in the block
+    /// at `height`.
+    fn batch_txid_from_pos<I>(&self, heights_and_positions: I) -> Result<Vec<Txid>, Error>
+    where
+        I: IntoIterator + Clone,
+        I::Item: Borrow<(usize, usize)>;
+
     /// Returns a transaction hash and a merkle path, given a block `height` and a `tx_pos` in the
     /// block.
     fn txid_from_pos_with_merkle(
@@ -445,6 +473,18 @@ pub trait ElectrumApi {
         height: usize,
         tx_pos: usize,
     ) -> Result<TxidFromPosMerkleRes, Error>;
+
+    /// Batch version of [`txid_from_pos_with_merkle`](#method.txid_from_pos_with_merkle).
+    ///
+    /// Takes a list of `(height, tx_pos)`, for the transaction at position `tx_pos` in the block
+    /// at `height`.
+    fn batch_txid_from_pos_with_merkle<I>(
+        &self,
+        heights_and_positions: I,
+    ) -> Result<Vec<TxidFromPosMerkleRes>, Error>
+    where
+        I: IntoIterator + Clone,
+        I::Item: Borrow<(usize, usize)>;
 
     /// Returns the capabilities of the server.
     fn server_features(&self) -> Result<ServerFeaturesRes, Error>;
@@ -685,11 +725,30 @@ mod test {
             unreachable!()
         }
 
+        fn batch_txid_from_pos<I>(&self, _: I) -> Result<Vec<bitcoin::Txid>, super::Error>
+        where
+            I: IntoIterator + Clone,
+            I::Item: std::borrow::Borrow<(usize, usize)>,
+        {
+            unreachable!()
+        }
+
         fn txid_from_pos_with_merkle(
             &self,
             _: usize,
             _: usize,
         ) -> Result<super::TxidFromPosMerkleRes, super::Error> {
+            unreachable!()
+        }
+
+        fn batch_txid_from_pos_with_merkle<I>(
+            &self,
+            _: I,
+        ) -> Result<Vec<super::TxidFromPosMerkleRes>, super::Error>
+        where
+            I: IntoIterator + Clone,
+            I::Item: std::borrow::Borrow<(usize, usize)>,
+        {
             unreachable!()
         }
 
