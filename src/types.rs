@@ -347,8 +347,11 @@ pub struct GetMerkleRes {
 /// Response to a [`txid_from_pos_with_merkle`](../client/struct.Client.html#method.txid_from_pos_with_merkle)
 /// request.
 #[derive(Clone, Debug, Deserialize)]
-pub struct TxidFromPosRes {
+pub struct TxidFromPosMerkleRes {
     /// Txid of the transaction.
+    ///
+    /// `electrs` before v0.11.1 named this field `tx_id`, which is accepted as an alias.
+    #[serde(alias = "tx_id")]
     pub tx_hash: Txid,
     /// The merkle path of the transaction.
     #[serde(deserialize_with = "from_hex_array")]
@@ -554,6 +557,27 @@ mod tests {
         let script_status_json = serde_json::to_string(&script_status).unwrap();
         let script_status_back = serde_json::from_str(&script_status_json).unwrap();
         assert_eq!(script_status, script_status_back);
+    }
+
+    #[test]
+    fn txid_from_pos_with_merkle_accepts_legacy_electrs_key() {
+        use super::TxidFromPosMerkleRes;
+        use bitcoin::Txid;
+        use std::str::FromStr;
+
+        let expected =
+            Txid::from_str("1f7ff3c407f33eabc8bec7d2cc230948f2249ec8e591bcf6f971ca9366c8788d")
+                .unwrap();
+
+        // The two JSON keys used by electrs versions <0.11.1, and version 0.11.1.
+        for key in ["tx_id", "tx_hash"] {
+            let json = format!(
+                r#"{{"{key}":"1f7ff3c407f33eabc8bec7d2cc230948f2249ec8e591bcf6f971ca9366c8788d","merkle":["a9642263a86519a8b85a4d3297f58265c1e588803f6ef113f23bb889f5f9bc6e"]}}"#
+            );
+            let parsed: TxidFromPosMerkleRes = serde_json::from_str(&json).unwrap();
+            assert_eq!(parsed.tx_hash, expected, "failed for key {key}");
+            assert_eq!(parsed.merkle.len(), 1);
+        }
     }
 
     #[test]

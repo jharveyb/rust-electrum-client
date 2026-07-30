@@ -1382,7 +1382,7 @@ impl<T: Read + Write> ElectrumApi for RawClient<T> {
         &self,
         height: usize,
         tx_pos: usize,
-    ) -> Result<TxidFromPosRes, Error> {
+    ) -> Result<TxidFromPosMerkleRes, Error> {
         let params = vec![
             Param::Usize(height),
             Param::Usize(tx_pos),
